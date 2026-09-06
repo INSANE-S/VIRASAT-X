@@ -1,0 +1,2685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIRASATX — Ancient Indian Monopoly 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Yatra+One&family=Poppins:wght@400;500;600;700&display=swap');
+
+  :root {
+    --parchment: #FDF6EA;
+    --parchment-dark: #E2CFA8;
+    --ink: #1C0A04;
+    --gold: #D4AF37;
+    --gold-bright: #FFD700;
+    --saffron: #FF9933;
+    --terracotta: #C85A32;
+    --royal-blue: #1A365D;
+    --wall-front: #5A2A18;
+    --wall-side: #421E10;
+    --wall-back: #261008;
+    --board-size: min(82vw, 82vh);
+    --thickness: 42px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #050202;
+    background-image:
+      radial-gradient(circle at 50% 30%, rgba(212,175,55,0.32), transparent 60%),
+      radial-gradient(circle at 80% 80%, rgba(200,90,50,0.28), transparent 50%),
+      radial-gradient(circle at 10% 90%, rgba(26,54,93,0.38), transparent 50%),
+      repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 8px);
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .scene {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 2000px;
+    position: relative;
+  }
+
+  .floor-shadow {
+    position: absolute;
+    width: calc(var(--board-size) * 1.35);
+    height: calc(var(--board-size) * 0.7);
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.98), rgba(0,0,0,0) 70%);
+    filter: blur(22px);
+    z-index: 0;
+  }
+
+  .rig {
+    width: var(--board-size);
+    height: var(--board-size);
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(52deg) rotateZ(-10deg);
+    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 1;
+  }
+
+  .wall { position: absolute; background: var(--wall-side); transform-style: preserve-3d; }
+  .wall-front {
+    left:0; bottom:0; width:100%; height:var(--thickness);
+    transform-origin: bottom center;
+    transform: rotateX(-90deg);
+    background: linear-gradient(180deg, #8B4513, #4A2306, var(--wall-back));
+    border-bottom: 2.5px solid var(--gold-bright);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.85);
+  }
+  .wall-back {
+    left:0; top:0; width:100%; height:var(--thickness);
+    transform-origin: top center;
+    transform: rotateX(90deg);
+    background: linear-gradient(0deg, #8B4513, #4A2306, var(--wall-back));
+  }
+  .wall-left {
+    top:0; left:0; width:var(--thickness); height:100%;
+    transform-origin: left center;
+    transform: rotateY(90deg);
+    background: linear-gradient(90deg, var(--wall-back), #4A2306, var(--wall-side));
+  }
+  .wall-right {
+    top:0; right:0; width:var(--thickness); height:100%;
+    transform-origin: right center;
+    transform: rotateY(-90deg);
+    background: linear-gradient(270deg, var(--wall-back), #4A2306, var(--wall-side));
+  }
+
+  .base-plate {
+    position: absolute;
+    inset: 0;
+    background: var(--wall-back);
+    transform: translateZ(0px);
+    box-shadow: 0 0 70px rgba(0,0,0,0.98);
+  }
+
+  .board {
+    position: absolute;
+    inset: 0;
+    transform: translateZ(var(--thickness));
+    transform-style: preserve-3d;
+    display: grid;
+    grid-template-columns: 1.4fr repeat(7, 1fr) 1.4fr;
+    grid-template-rows: 1.4fr repeat(7, 1fr) 1.4fr;
+    background: linear-gradient(135deg, #FFFDF8, #F4E7CE, #EAD4AA);
+    border: 5px solid var(--ink);
+    box-shadow: 
+      inset 0 0 60px rgba(90, 42, 24, 0.5),
+      inset 0 0 20px rgba(212,175,55,0.7),
+      0 20px 50px rgba(0,0,0,0.9);
+  }
+
+  .cell {
+    border: 1px solid rgba(34, 18, 11, 0.7);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(240,225,195,0.8));
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .band { 
+    height: 18%; 
+    width: 100%; 
+    flex-shrink: 0; 
+    position: relative; 
+    border-bottom: 1px solid var(--ink); 
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.25);
+  }
+  
+  .owner-indicator {
+    position: absolute;
+    inset: 0;
+    opacity: 0.9;
+    transition: all 0.4s ease;
+  }
+
+  .owner-badge-tile {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    background: rgba(18, 8, 5, 0.95);
+    border: 1px solid var(--gold-bright);
+    color: #FFF;
+    font-size: clamp(6px, 0.6vw, 8px);
+    font-weight: bold;
+    padding: 1px 3px;
+    border-radius: 3px;
+    z-index: 5;
+    font-family: 'Cinzel', serif;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .owner-badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+
+  .buildings-bar {
+    position: absolute;
+    top: 1px; left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    z-index: 2;
+  }
+  .house-icon {
+    width: 6px; height: 6px;
+    background: linear-gradient(135deg, #FFB74D, var(--saffron));
+    border: 1px solid var(--ink);
+    border-radius: 1px;
+  }
+  .hotel-icon {
+    width: 12px; height: 7px;
+    background: linear-gradient(135deg, #FFF176, var(--gold-bright));
+    border: 1px solid var(--ink);
+    border-radius: 1px;
+  }
+
+  .label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    font-size: clamp(5px, 0.65vw, 8px);
+    font-weight: 700;
+    color: var(--ink);
+    padding: 1px;
+    line-height: 1.05;
+    text-transform: uppercase;
+    font-family: 'Cinzel', serif;
+    min-height: 0;
+    position: relative;
+  }
+
+  .cell-title {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    width: 100%;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .cell-title:hover {
+    color: var(--terracotta);
+    text-decoration: underline;
+  }
+
+  .history-hover-card {
+    position: absolute;
+    bottom: 105%;
+    left: 50%;
+    transform: translateX(-50%) translateZ(40px);
+    width: 210px;
+    background: linear-gradient(135deg, #FDF6EA, #F4E7CE);
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.85), 0 0 12px rgba(212,175,55,0.4);
+    color: var(--ink);
+    font-family: 'Poppins', sans-serif;
+    font-size: 10.5px;
+    text-transform: none;
+    line-height: 1.35;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+  }
+  .history-hover-card::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: var(--gold) transparent transparent transparent;
+  }
+
+  .cell-title-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .cell.owned .cell-title-wrapper:hover .history-hover-card {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .history-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    font-size: 11.5px;
+    color: var(--terracotta);
+    border-bottom: 1px solid var(--gold);
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .history-owner-badge {
+    font-size: 8px;
+    background: var(--ink);
+    color: var(--gold-bright);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: 'Cinzel', serif;
+  }
+  .history-text {
+    max-height: 110px;
+    overflow-y: auto;
+    font-size: 9.5px;
+    color: #3A1B0B;
+    text-align: left;
+  }
+
+  .cell-monument {
+    font-size: clamp(4.5px, 0.55vw, 6.5px);
+    opacity: 0.85;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .cell-img {
+    width: 96%;
+    flex: 1;
+    min-height: 0;
+    object-fit: cover;
+    margin: 1px 0;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.35);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    filter: contrast(1.1) saturate(1.15);
+  }
+
+  .chance-box, .community-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Yatra One', cursive;
+    font-size: clamp(8px, 0.9vw, 12px);
+    color: var(--terracotta);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .price {
+    font-size: clamp(5px, 0.55vw, 7px);
+    color: #3A1B0B;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .corner {
+    background: linear-gradient(135deg, #EAD4AA, #D2B47C);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: clamp(7.5px, 0.85vw, 10.5px);
+    font-weight: 800;
+    padding: 2px;
+    text-transform: uppercase;
+    font-family: 'Yatra One', cursive;
+  }
+  .corner .sub {
+    display: block;
+    font-size: 0.65em;
+    font-weight: 600;
+    color: var(--terracotta);
+    margin-top: 2px;
+    font-family: 'Cinzel', serif;
+  }
+
+  .center {
+    grid-column: 2 / span 7;
+    grid-row: 2 / span 7;
+    background: radial-gradient(circle, #FFFDF8 0%, #F5E5C9 60%, #E2C799 100%);
+    border: 3px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: inset 0 0 40px rgba(90, 42, 24, 0.3);
+  }
+  .center-content { text-align: center; transform: rotate(-45deg); }
+  .center-content h1 {
+    margin: 0;
+    font-size: clamp(24px, 3.8vw, 48px);
+    color: var(--terracotta);
+    background: linear-gradient(180deg, #FFFDF8, #FAF0D7);
+    border: 4px solid var(--ink);
+    padding: 8px 24px;
+    letter-spacing: 0.1em;
+    font-weight: 900;
+    font-family: 'Yatra One', cursive;
+    box-shadow: 8px 8px 0px var(--ink), 0 0 20px rgba(212,175,55,0.4);
+    text-shadow: 2px 2px 0px var(--gold-bright), 4px 4px 8px rgba(0,0,0,0.3);
+  }
+
+  .tokens-layer {
+    position: absolute;
+    inset: 0;
+    transform: translateZ(var(--thickness));
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+
+  .token {
+    position: absolute;
+    width: 32px; height: 32px;
+    transform-style: preserve-3d;
+    transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 10;
+  }
+
+  .token-billboard {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .token-pedestal-3d {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 28px; height: 10px;
+    margin-left: -14px; margin-top: -5px;
+    transform-style: preserve-3d;
+  }
+
+  .pedestal-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, #D2B176 30%, #5C421E 80%, #2D1C0A 100%);
+    border: 1px solid #1C0A04;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.95);
+  }
+  .pedestal-ring.r1 { transform: translateZ(0px); }
+  .pedestal-ring.r2 { transform: translateZ(3px) scale(0.9); }
+  .pedestal-ring.r3 { transform: translateZ(6px) scale(0.8); }
+
+  .token-figure-3d {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 38px; height: 60px;
+    margin-left: -19px; margin-top: -60px;
+    transform-style: preserve-3d;
+    transform: translateZ(6px) rotateX(-52deg);
+  }
+
+  .token-slice {
+    position: absolute;
+    inset: 0;
+    transform-origin: bottom center;
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.85));
+  }
+  .token-slice svg { width: 100%; height: 100%; display: block; }
+
+  .token-slice.s1 { transform: translateZ(-3px); opacity: 0.8; }
+  .token-slice.s2 { transform: translateZ(-1.5px); }
+  .token-slice.s3 { transform: translateZ(0px); }
+  .token-slice.s4 { transform: translateZ(1.5px); }
+  .token-slice.s5 { transform: translateZ(3px); opacity: 0.8; }
+
+  .hud {
+    position: absolute;
+    top: 20px; left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+  }
+
+  .player-card {
+    background: linear-gradient(135deg, rgba(28, 12, 6, 0.96), rgba(15, 6, 3, 0.96));
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #FFF;
+    min-width: 240px;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.7), inset 0 0 12px rgba(212,175,55,0.12);
+    position: relative;
+  }
+  .player-card.active {
+    border-color: var(--gold-bright);
+    background: linear-gradient(135deg, rgba(58, 26, 12, 0.96), rgba(35, 14, 6, 0.96));
+    transform: scale(1.05) translateX(6px);
+    box-shadow: 0 0 25px rgba(255,215,0,0.5), inset 0 0 20px rgba(255,215,0,0.2);
+  }
+  .player-card.bankrupt { opacity: 0.35; filter: grayscale(1); }
+  .player-name { font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: space-between; font-family: 'Cinzel', serif; letter-spacing: 0.05em; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .currencies { display: flex; gap: 12px; margin-top: 8px; }
+  .currency-badge {
+    background: rgba(0,0,0,0.5);
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(212,175,55,0.3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .currency-val { font-size: 13.5px; font-weight: 800; }
+  .val-rupees { color: #FFD700; }
+  .val-paise { color: #FF9933; }
+  .player-badge { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 2px solid #FFF; box-shadow: 0 0 6px currentColor; }
+
+  .controls-bar {
+    position: absolute;
+    top: 20px; right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  .dice-area {
+    position: absolute;
+    bottom: 25px; right: 25px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dice-row { display: flex; gap: 15px; }
+  .die-scene { perspective: 500px; }
+
+  .die {
+    width: 80px; height: 28px;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateZ(-6deg) rotateX(0deg);
+    transition: transform 1.15s cubic-bezier(.15,.75,.25,1);
+  }
+
+  .die-face {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 80px; height: 28px;
+    margin-left: -40px; margin-top: -14px;
+    background: linear-gradient(180deg, #FFFDF8, #F0E6D2);
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.15);
+  }
+  .die-face.f1 { transform: rotateX(0deg) translateZ(14px); }
+  .die-face.f2 { transform: rotateX(90deg) translateZ(14px); }
+  .die-face.f3 { transform: rotateX(180deg) translateZ(14px); }
+  .die-face.f4 { transform: rotateX(270deg) translateZ(14px); }
+
+  .die-cap {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 28px; height: 28px;
+    margin-left: -14px; margin-top: -14px;
+    background: #E0D0B0;
+    border: 1px solid var(--ink);
+  }
+  .die-cap.left { transform: rotateY(-90deg) translateZ(40px); }
+  .die-cap.right { transform: rotateY(90deg) translateZ(40px); }
+
+  .pip {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--terracotta);
+    transform: translate(-50%,-50%);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
+  }
+
+  .action-btn {
+    background: linear-gradient(180deg, var(--terracotta), #8B3214);
+    color: #FFF;
+    border: 2px solid var(--gold);
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.06em;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.3);
+    transition: all 0.2s ease;
+  }
+  .action-btn.build-btn {
+    background: linear-gradient(180deg, var(--saffron), #C76B00);
+    border-color: #FFE082;
+  }
+  .action-btn.rename-btn {
+    background: linear-gradient(180deg, var(--royal-blue), #0F2342);
+    border-color: #90CAF9;
+  }
+  .action-btn:hover { filter: brightness(1.2); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.8); }
+  .action-btn:active { transform: translateY(1px); }
+  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); transform: none; }
+
+  /* TRANSACTION POPUP MODAL */
+  .trans-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(4px);
+  }
+  .trans-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .trans-card {
+    background: linear-gradient(135deg, #1C0A04, #3B160A);
+    border: 3px solid var(--gold-bright);
+    border-radius: 16px;
+    padding: 24px 36px;
+    text-align: center;
+    color: #FFF;
+    box-shadow: 0 0 50px rgba(212,175,55,0.5);
+    transform: scale(0.7);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: 310px;
+  }
+  .trans-overlay.open .trans-card {
+    transform: scale(1);
+  }
+  .trans-type {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .trans-player {
+    font-family: 'Yatra One', cursive;
+    font-size: 26px;
+    margin-bottom: 12px;
+  }
+  .trans-amount {
+    font-family: 'Yatra One', cursive;
+    font-size: 34px;
+    margin: 8px 0;
+  }
+  .trans-amount.plus { color: #2ECC71; text-shadow: 0 0 12px rgba(46,204,113,0.5); }
+  .trans-amount.minus { color: #E74C3C; text-shadow: 0 0 12px rgba(231,76,60,0.5); }
+  .trans-reason {
+    font-size: 12.5px;
+    color: var(--parchment-dark);
+    margin-bottom: 18px;
+  }
+
+  /* BHAGYA CHANCE MACHINE STYLES */
+  .bhagya-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,2,1,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2700;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  .bhagya-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .bhagya-machine {
+    position: relative;
+    width: 480px;
+    max-width: 92vw;
+    padding: 26px 24px 30px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, #6E4A22, #3B2410 60%, #241407);
+    border: 4px solid var(--gold-bright);
+    box-shadow: 0 0 70px rgba(255,190,60,0.45), inset 0 0 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bhagya-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    font-size: 22px;
+    color: var(--gold-bright);
+    text-shadow: 0 2px 3px rgba(0,0,0,0.8);
+    margin-bottom: 4px;
+  }
+  .bhagya-sub {
+    font-family: 'Yatra One', cursive;
+    color: #F3D9A4;
+    font-size: 12px;
+    margin-bottom: 14px;
+    opacity: 0.85;
+  }
+
+  .bhagya-rings {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .bhagya-brass-disc {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background: radial-gradient(circle at 35% 30%, #FFE9A8, #D3A34A 55%, #6E4A1E 100%);
+    border: 2px solid #3B2410;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.6);
+  }
+
+  .bhagya-parchment {
+    flex: 1;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(0,0,0,0.06), transparent 60%),
+      linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+    border: 2px solid #241407;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .bhagya-reel {
+    width: 78px;
+    height: 210px;
+    background: #18100a;
+    border: 3px solid var(--gold);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 10px 14px -6px rgba(0,0,0,0.9), inset 0 -10px 14px -6px rgba(0,0,0,0.9);
+  }
+  .bhagya-reel-strip {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+  }
+  .bhagya-symbol {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    border-bottom: 1px solid rgba(0,0,0,0.25);
+  }
+
+  .bhagya-lever-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 18px;
+  }
+
+  .bhagya-lever-pivot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFE9A8, #8A6028 70%, #3B2410);
+    border: 2px solid #241407;
+    position: relative;
+    cursor: pointer;
+  }
+  .bhagya-lever-rod {
+    width: 10px;
+    height: 70px;
+    background: linear-gradient(90deg, #8A6028, #D3A554, #8A6028);
+    border: 1px solid #241407;
+    border-radius: 5px;
+    transform-origin: bottom center;
+    transition: transform 0.35s cubic-bezier(0.2,0.8,0.3,1);
+  }
+  .bhagya-lever-rod.pulled { transform: rotate(46deg); }
+  .bhagya-lever-handle {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFF3C4, #D4AF37 60%, #6E4A1E);
+    border: 2px solid #241407;
+    margin: -8px auto 0;
+  }
+
+  .bhagya-plaque {
+    background: linear-gradient(180deg, #3B2410, #18100a);
+    border: 3px solid var(--gold);
+    border-radius: 10px;
+    padding: 10px 26px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: box-shadow 0.3s ease;
+  }
+  .bhagya-plaque:hover { box-shadow: 0 0 18px rgba(255,215,0,0.6); }
+  .bhagya-plaque.disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+  .bhagya-plaque-main {
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    color: var(--gold-bright);
+    font-size: 16px;
+    letter-spacing: 0.1em;
+  }
+  .bhagya-plaque-sub {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    color: #C9A25E;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  .bhagya-hint {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: #E6C98C;
+    margin-top: 12px;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+
+  .bhagya-result {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 6px;
+    width: 100%;
+  }
+  .bhagya-result.show { display: flex; }
+  .bhagya-result-icon { font-size: 40px; margin-bottom: 6px; }
+  .bhagya-result-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .bhagya-result-desc {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: #EDD9B5;
+    text-align: center;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .bhagya-result-amount {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    font-size: 28px;
+    margin-bottom: 14px;
+  }
+  .bhagya-collect-btn {
+    padding: 10px 30px;
+    border-radius: 10px;
+    border: 2px solid #241407;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: #22120B;
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+
+  /* CHANCE QUIZ GATE STYLES */
+  .quiz-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,2,1,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2650;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  .quiz-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .quiz-card {
+    width: 420px;
+    max-width: 90vw;
+    background: linear-gradient(160deg, #3B2410, #1C0A04);
+    border: 4px solid var(--gold-bright);
+    border-radius: 18px;
+    padding: 26px 26px 24px;
+    color: #F3E3C4;
+    box-shadow: 0 0 60px rgba(255,190,60,0.4);
+    text-align: center;
+  }
+  .quiz-eyebrow {
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    font-size: 13px;
+    color: var(--gold-bright);
+    margin-bottom: 10px;
+  }
+  .quiz-question {
+    font-family: 'Yatra One', cursive;
+    font-size: 18px;
+    line-height: 1.4;
+    color: #FFF3D6;
+    margin-bottom: 18px;
+  }
+  .quiz-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 2px solid var(--gold);
+    background: #FDF6EA;
+    color: #22120B;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+  }
+  .quiz-submit-btn {
+    padding: 10px 28px;
+    border-radius: 10px;
+    border: 2px solid #241407;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: #22120B;
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+  .quiz-feedback {
+    margin-top: 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    min-height: 18px;
+  }
+  .quiz-feedback.correct { color: #7CDB6A; }
+  .quiz-feedback.wrong { color: #FF8A70; }
+
+  .toast-container {
+    position: absolute;
+    bottom: 25px;
+    left: 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    z-index: 1500;
+    pointer-events: none;
+    max-width: 360px;
+  }
+
+  .game-toast {
+    background: linear-gradient(135deg, rgba(28, 12, 6, 0.96), rgba(15, 6, 3, 0.96));
+    border: 1.5px solid var(--gold);
+    border-left: 5px solid var(--gold-bright);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: #FDF6EA;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    transform: translateY(30px) scale(0.9);
+    opacity: 0;
+    animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  @keyframes toastIn {
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .game-toast.out {
+    animation: toastOut 0.3s ease forwards;
+  }
+
+  @keyframes toastOut {
+    to { transform: translateX(-40px) scale(0.8); opacity: 0; }
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(5px);
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .modal {
+    background: var(--parchment);
+    border: 4px solid var(--ink);
+    border-radius: 14px;
+    width: 420px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 0;
+    text-align: center;
+    color: var(--ink);
+    box-shadow: 0 25px 60px rgba(0,0,0,0.95), 0 0 25px rgba(212,175,55,0.25);
+    position: relative;
+    background-image: radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 80%);
+  }
+
+  .modal-header {
+    padding: 14px 18px;
+    color: #FFF;
+    font-weight: 800;
+    font-size: 16px;
+    border-bottom: 3px solid var(--ink);
+    text-transform: uppercase;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.08em;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+
+  .modal-content { padding: 20px 22px; }
+
+  .modal-title {
+    margin: 0 0 4px 0;
+    font-family: 'Yatra One', cursive;
+    font-size: 24px;
+    color: var(--ink);
+  }
+
+  .modal-subtitle {
+    font-size: 12.5px;
+    color: #6A3E22;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .deed-card {
+    background: #FAF3E6;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+
+  .deed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(34, 18, 11, 0.2);
+    font-size: 13px;
+  }
+  .deed-row:last-child { border-bottom: none; }
+  .deed-label { font-weight: 600; color: #4A2818; }
+  .deed-val { font-weight: 700; color: var(--ink); }
+  .deed-highlight { color: #C85A32; font-weight: 800; }
+
+  .modal-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; padding: 0 20px 22px 20px; }
+
+  .build-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .build-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #EAD8B5;
+    border: 1px solid var(--ink);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .rename-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  .rename-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #EAD8B5;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--ink);
+  }
+  .rename-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 13px;
+    background: #FFFDF8;
+    color: var(--ink);
+  }
+
+  .conquest-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  .conquest-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .conquest-card {
+    background: linear-gradient(135deg, #1C0A04, #3B160A);
+    border: 3px solid var(--gold-bright);
+    border-radius: 18px;
+    padding: 32px 45px;
+    text-align: center;
+    color: #FFF;
+    box-shadow: 0 0 60px rgba(255,215,0,0.6);
+    transform: scale(0.6);
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .conquest-overlay.open .conquest-card { transform: scale(1); }
+
+  .conquest-title {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    letter-spacing: 0.2em;
+    color: var(--gold-bright);
+    margin-bottom: 8px;
+  }
+
+  .conquest-owner {
+    font-family: 'Yatra One', cursive;
+    font-size: 38px;
+    margin: 5px 0 15px 0;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  }
+
+  .conquest-tile-name {
+    font-family: 'Cinzel', serif;
+    font-size: 25px;
+    color: var(--parchment);
+    padding: 8px 18px;
+    border-top: 1.5px dashed var(--gold);
+    border-bottom: 1.5px dashed var(--gold);
+    margin-bottom: 22px;
+  }
+
+  .wheel-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  .wheel-modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .wheel-container {
+    background: linear-gradient(135deg, #1C0A04, #3B160A);
+    border: 4px solid var(--gold-bright);
+    border-radius: 20px;
+    padding: 24px 30px;
+    text-align: center;
+    color: #FFF;
+    box-shadow: 0 0 60px rgba(255,215,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    width: 380px;
+  }
+
+  .wheel-wrapper {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 15px 0;
+  }
+
+  .wheel-pointer {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 24px solid var(--gold-bright);
+    z-index: 10;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+  }
+
+  #wheelCanvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid var(--gold);
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    transition: transform 4s cubic-bezier(0.15, 0.85, 0.15, 1);
+  }
+
+  .wheel-result {
+    font-family: 'Yatra One', cursive;
+    font-size: 18px;
+    color: var(--gold-bright);
+    min-height: 48px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="scene" id="scene">
+  <div class="floor-shadow"></div>
+  <div class="rig" id="rig">
+    <div class="base-plate"></div>
+    <div class="wall wall-front"></div>
+    <div class="wall wall-back"></div>
+    <div class="wall wall-left"></div>
+    <div class="wall wall-right"></div>
+    <div class="board" id="board"></div>
+    <div class="tokens-layer" id="tokensLayer"></div>
+  </div>
+
+  <div class="controls-bar">
+    <button class="action-btn rename-btn" id="openRenameMenuBtn">✏️ RENAME RULERS</button>
+    <button class="action-btn build-btn" id="openBuildMenuBtn">🏰 CONSTRUCT PALACE</button>
+  </div>
+
+  <div class="hud" id="hud"></div>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="dice-area">
+    <div class="dice-row">
+      <div class="die-scene"><div class="die" id="die1"></div></div>
+      <div class="die-scene"><div class="die" id="die2"></div></div>
+    </div>
+    <button class="action-btn" id="rollBtn">ROLL PASA</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header" id="modalHeader">ROYAL DECREE</div>
+    <div class="modal-content">
+      <h3 class="modal-title" id="modalTitle">Title</h3>
+      <div class="modal-subtitle" id="modalSubtitle"></div>
+      <div id="modalBody">
+        <p id="modalDesc">Details go here...</p>
+      </div>
+    </div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<div class="conquest-overlay" id="conquestOverlay">
+  <div class="conquest-card">
+    <div class="conquest-title">TERRITORY CONQUERED BY</div>
+    <div class="conquest-owner" id="conquestOwnerName">SURYAVANSHI</div>
+    <div class="conquest-tile-name" id="conquestTileName">PATALIPUTRA</div>
+    <button class="action-btn" id="closeConquestBtn">CONTINUE KINGDOM TOUR</button>
+  </div>
+</div>
+
+<!-- TRANSACTION POP-UP MODAL -->
+<div class="trans-overlay" id="transOverlay">
+  <div class="trans-card">
+    <div class="trans-type" id="transType">ROYAL TREASURY UPDATED</div>
+    <div class="trans-player" id="transPlayerName">Suryavanshi</div>
+    <div class="trans-amount" id="transAmount">+₹350</div>
+    <div class="trans-reason" id="transReason">Completed Kingdom Tour</div>
+    <button class="action-btn" id="closeTransBtn" style="padding: 8px 18px; font-size: 12px;">ACCEPT DECREE</button>
+  </div>
+</div>
+
+<!-- CHANCE QUIZ GATE OVERLAY -->
+<div class="quiz-overlay" id="quizOverlay">
+  <div class="quiz-card">
+    <div class="quiz-eyebrow">TEST OF WISDOM</div>
+    <div class="quiz-question" id="quizQuestionText">Question goes here?</div>
+    <input type="text" class="quiz-input" id="quizInput" placeholder="Type your answer..." autocomplete="off" />
+    <div>
+      <button class="quiz-submit-btn" id="quizSubmitBtn">ANSWER</button>
+    </div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
+  </div>
+</div>
+
+<!-- BHAGYA CHANCE MACHINE OVERLAY -->
+<div class="bhagya-overlay" id="bhagyaOverlay">
+  <div class="bhagya-machine">
+    <div class="bhagya-title">BHAGYA</div>
+    <div class="bhagya-sub">Ancient India Chance Machine</div>
+
+    <div class="bhagya-rings">
+      <div class="bhagya-brass-disc"></div>
+      <div class="bhagya-parchment" id="bhagyaReelsWrap"></div>
+      <div class="bhagya-brass-disc"></div>
+    </div>
+
+    <div class="bhagya-lever-row" id="bhagyaLeverRow">
+      <div class="bhagya-lever-pivot">
+        <div class="bhagya-lever-rod" id="bhagyaLeverRod">
+          <div class="bhagya-lever-handle"></div>
+        </div>
+      </div>
+      <div class="bhagya-plaque" id="bhagyaPullPlaque">
+        <div class="bhagya-plaque-main">PULL</div>
+        <div class="bhagya-plaque-sub">SPIN YOUR BHAGYA</div>
+      </div>
+    </div>
+
+    <div class="bhagya-hint" id="bhagyaHint">PULL THE LEVER TO SPIN BHAGYA</div>
+
+    <div class="bhagya-result" id="bhagyaResult">
+      <div class="bhagya-result-icon" id="bhagyaResultIcon"></div>
+      <div class="bhagya-result-title" id="bhagyaResultTitle"></div>
+      <div class="bhagya-result-desc" id="bhagyaResultDesc"></div>
+      <div class="bhagya-result-amount" id="bhagyaResultAmount"></div>
+      <button class="bhagya-collect-btn" id="bhagyaCollectBtn">COLLECT</button>
+    </div>
+  </div>
+</div>
+
+<div class="wheel-modal-overlay" id="wheelOverlay">
+  <div class="wheel-container">
+    <div class="modal-header" id="wheelHeader" style="width:100%; border-radius:8px 8px 0 0; background:var(--terracotta);">WHEEL OF DESTINY</div>
+    <div class="wheel-wrapper">
+      <div class="wheel-pointer"></div>
+      <canvas id="wheelCanvas" width="300" height="300"></canvas>
+    </div>
+    <div class="wheel-result" id="wheelResultText">Spin the Chakra to fulfill your fate!</div>
+    <button class="action-btn" id="spinWheelBtn" style="background:linear-gradient(180deg, var(--gold-bright), var(--gold)); color:#22120B;">SPIN CHAKRA</button>
+  </div>
+</div>
+
+<script>
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  function playDiceRollSound() {
+    initAudio();
+    if (!audioCtx) return;
+
+    const rollsCount = 9;
+    for (let i = 0; i < rollsCount; i++) {
+      const delay = i * 0.11 + Math.random() * 0.03;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(140 + Math.random() * 120, audioCtx.currentTime + delay);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + delay + 0.08);
+
+      gain.gain.setValueAtTime(0.35, audioCtx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.08);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(audioCtx.currentTime + delay);
+      osc.stop(audioCtx.currentTime + delay + 0.08);
+    }
+  }
+
+  const PLAYER_3D_SVGS = {
+    gold: `
+      <svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bronzeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D2B176"/>
+            <stop offset="35%" stop-color="#916E3B"/>
+            <stop offset="70%" stop-color="#5C421E"/>
+            <stop offset="100%" stop-color="#2D1C0A"/>
+          </linearGradient>
+          <radialGradient id="rubyGem" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#FF7B7B"/>
+            <stop offset="40%" stop-color="#D61C1C"/>
+            <stop offset="100%" stop-color="#500000"/>
+          </radialGradient>
+          <radialGradient id="emeraldGem" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#A2FFC6"/>
+            <stop offset="40%" stop-color="#00A843"/>
+            <stop offset="100%" stop-color="#003811"/>
+          </radialGradient>
+        </defs>
+        <path d="M14,74 Q30,62 49,74 L42,54 Q30,50 18,54 Z" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M22,53 Q30,68 38,53 Q30,58 22,53 Z" fill="none" stroke="#2D1C0A" stroke-width="1.5"/>
+        <path d="M23,54 L23,43 L37,43 L37,54 Z" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1"/>
+        <ellipse cx="30" cy="35" rx="11.5" ry="12.5" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M17,33 Q30,22 43,33 Q30,27 17,33 Z" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M16,27 Q30,16 44,27 Q30,22 16,27 Z" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M16,20 L20,8 L30,14 L40,8 L44,20 Z" fill="url(#bronzeGrad)" stroke="#1C0A04" stroke-width="1.5"/>
+        <circle cx="30" cy="9.5" r="3.2" fill="url(#rubyGem)" stroke="#1C0A04" stroke-width="0.5"/>
+        <circle cx="21" cy="15" r="2.5" fill="url(#rubyGem)" stroke="#1C0A04" stroke-width="0.5"/>
+        <circle cx="39" cy="15" r="2.5" fill="url(#rubyGem)" stroke="#1C0A04" stroke-width="0.5"/>
+        <circle cx="30" cy="23" r="2.8" fill="url(#emeraldGem)" stroke="#1C0A04" stroke-width="0.5"/>
+      </svg>`,
+
+    ruby: `
+      <svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bronzeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D2B176"/>
+            <stop offset="35%" stop-color="#916E3B"/>
+            <stop offset="70%" stop-color="#5C421E"/>
+            <stop offset="100%" stop-color="#2D1C0A"/>
+          </linearGradient>
+          <radialGradient id="rubyGem2" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#FF7B7B"/>
+            <stop offset="40%" stop-color="#D61C1C"/>
+            <stop offset="100%" stop-color="#500000"/>
+          </radialGradient>
+        </defs>
+        <path d="M13,74 Q8,34 30,10 Q52,34 47,74 Z" fill="url(#bronzeGrad2)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M18,74 Q14,38 30,17 Q46,38 42,74 Z" fill="#2D1C0A" opacity="0.4"/>
+        <ellipse cx="30" cy="30" rx="8.5" ry="10" fill="url(#bronzeGrad2)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M30,5 Q34,11 30,16 Q26,11 30,5 Z" fill="url(#rubyGem2)" stroke="#1C0A04" stroke-width="0.8"/>
+        <path d="M20,74 L20,52 Q30,44 40,52 L40,74 Z" fill="url(#bronzeGrad2)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M23,74 L23,56 Q30,50 37,56 L37,74 Z" fill="#1C0A04"/>
+        <line x1="26" y1="58" x2="26" y2="74" stroke="url(#bronzeGrad2)" stroke-width="1.5"/>
+        <line x1="34" y1="58" x2="34" y2="74" stroke="url(#bronzeGrad2)" stroke-width="1.5"/>
+      </svg>`,
+
+    emerald: `
+      <svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bronzeGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D2B176"/>
+            <stop offset="35%" stop-color="#916E3B"/>
+            <stop offset="70%" stop-color="#5C421E"/>
+            <stop offset="100%" stop-color="#2D1C0A"/>
+          </linearGradient>
+          <radialGradient id="blueGem" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#9BD3FF"/>
+            <stop offset="40%" stop-color="#1B60C4"/>
+            <stop offset="100%" stop-color="#05193B"/>
+          </radialGradient>
+          <radialGradient id="emeraldGem2" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#A2FFC6"/>
+            <stop offset="40%" stop-color="#00A843"/>
+            <stop offset="100%" stop-color="#003811"/>
+          </radialGradient>
+        </defs>
+        <rect x="15" y="54" width="7" height="20" rx="2" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <rect x="24" y="54" width="7" height="20" rx="2" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <rect x="33" y="54" width="7" height="20" rx="2" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <rect x="41" y="54" width="7" height="20" rx="2" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M13,58 Q13,38 30,38 Q48,38 48,58 Z" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M38,40 Q47,38 45,49 Q38,47 38,40 Z" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M44,48 Q54,50 51,68 Q46,70 45,64 Q49,54 42,52 Z" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M42,54 Q51,57 49,51 Z" fill="#FFFDF8" stroke="#1C0A04" stroke-width="1"/>
+        <circle cx="43" cy="42" r="2.2" fill="url(#emeraldGem2)" stroke="#1C0A04" stroke-width="0.5"/>
+        <circle cx="47" cy="45" r="2.8" fill="url(#blueGem)" stroke="#1C0A04" stroke-width="0.5"/>
+        <path d="M19,38 L21,20 L39,20 L41,38 Z" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M17,20 L21,9 L30,15 L39,9 L43,20 Z" fill="url(#bronzeGrad3)" stroke="#1C0A04" stroke-width="1.5"/>
+      </svg>`,
+
+    peacock: `
+      <svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bronzeGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D2B176"/>
+            <stop offset="35%" stop-color="#916E3B"/>
+            <stop offset="70%" stop-color="#5C421E"/>
+            <stop offset="100%" stop-color="#2D1C0A"/>
+          </linearGradient>
+          <radialGradient id="emeraldGem3" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#A2FFC6"/>
+            <stop offset="40%" stop-color="#00A843"/>
+            <stop offset="100%" stop-color="#003811"/>
+          </radialGradient>
+        </defs>
+        <path d="M17,74 L19,54 L25,54 L22,74 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M25,74 L27,58 L33,58 L29,74 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M38,74 L40,58 L44,52 L42,74 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M42,50 Q49,46 47,56 L43,58 Q44,50 39,52 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.2"/>
+        <path d="M15,56 Q19,42 35,44 Q46,46 43,58 Q29,62 15,56 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M23,45 L35,45 L37,58 L21,58 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1"/>
+        <path d="M33,46 Q37,28 43,18 L49,24 Q43,32 41,48 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M43,18 Q53,21 47,28 Q41,26 43,18 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1.5"/>
+        <path d="M41,18 L43,10 L46,18 Z" fill="url(#bronzeGrad4)" stroke="#1C0A04" stroke-width="1"/>
+        <path d="M33,38 Q41,40 39,46" fill="none" stroke="#1C0A04" stroke-width="2.5"/>
+        <circle cx="35" cy="40" r="2.2" fill="url(#emeraldGem3)" stroke="#1C0A04" stroke-width="0.5"/>
+        <circle cx="38" cy="43" r="2.2" fill="url(#emeraldGem3)" stroke="#1C0A04" stroke-width="0.5"/>
+      </svg>`
+  };
+
+  const FALLBACK_IMG = "https://images.unsplash.com/photo-1548013146-72479768bada?w=600&q=80";
+
+  const BOARD_TILES = [
+    { type: "corner", title: "START", sub: "Collect ₹350 & 150p", sideIndex: 0 },
+    { type: "property", city: "Delhi", monument: "India Gate", image: "https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80", price: 180, housePaisePrice: 120, rent: [12, 60, 180, 450, 750, 1100], color: "#8D5B4C", group: 1, sideIndex: 0, history: "Anciently Indraprastha of the Mahabharata (1450 BCE), Delhi has served as the legendary seat of 7 ancient and medieval empires, from the Tomar Rajputs to the Mughal Dynasty." },
+    { type: "property", city: "Lucknow", monument: "Rumi Darwaja", image: "https://images.unsplash.com/photo-1618288880658-0eb981615d23?w=600&q=80", price: 200, housePaisePrice: 120, rent: [16, 80, 240, 550, 900, 1300], color: "#8D5B4C", group: 1, sideIndex: 0, history: "The cultural soul of Awadh, famed for royal Nawabi patronage, classical Kathak dance, Hindustani music, and baroque 18th-century architectural marvels like the Rumi Darwaza." },
+    { type: "chance", title: "Chance", sideIndex: 0 },
+    { type: "property", city: "Jaipur", monument: "Hawa Mahal", image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=600&q=80", price: 280, housePaisePrice: 160, rent: [22, 110, 330, 800, 1200, 1600], color: "#5B84B1", group: 2, sideIndex: 0, history: "Founded in 1727 by Maharaja Sawai Jai Singh II as India's first planned grid city based on Vastu Shastra principles, celebrated for its terracotta-pink fortresses and astronomy observatories." },
+    { type: "railroad", city: "Delhi", monument: "Delhi Airport", image: "https://images.unsplash.com/photo-1542296332-2e4473faf563?w=600&q=80", price: 450, rent: 85, sideIndex: 0, history: "Indira Gandhi International Airport, the primary aviation gateway uniting modern India with global trade hubs." },
+    { type: "property", city: "Agra", monument: "Taj Mahal", image: "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=600&q=80", price: 320, housePaisePrice: 160, rent: [28, 140, 400, 950, 1350, 1850], color: "#5B84B1", group: 2, sideIndex: 0, history: "The imperial capital of the Mughal Empire in the 16th-17th centuries along the Yamuna River, famous worldwide for the Taj Mahal and Agra Fort." },
+    { type: "community", title: "Community", sideIndex: 0 },
+    { type: "corner", title: "JAIL", sub: "Bandigriha", sideIndex: 1 },
+    { type: "property", city: "Amritsar", monument: "Golden Temple", image: "https://images.unsplash.com/photo-1514222134-b57cbb8ce073?w=600&q=80", price: 380, housePaisePrice: 220, rent: [34, 170, 500, 1150, 1600, 2100], color: "#C9648A", group: 3, sideIndex: 1, history: "Founded in 1577 by Guru Ram Das Ji, home to the sacred Harmandir Sahib (Golden Temple), serving as the spiritual, cultural, and historical epicenter of Sikh heritage." },
+    { type: "property", city: "Madurai", monument: "Meenakshi Temple", image: "https://images.unsplash.com/photo-1600100397608-f010e423b961?w=600&q=80", price: 400, housePaisePrice: 220, rent: [36, 180, 520, 1200, 1650, 2200], color: "#C9648A", group: 3, sideIndex: 1, history: "One of the world's oldest continuously inhabited cities, ruling as the ancient capital of the Pandyan Kingdom and celebrated for the towering gopurams of Meenakshi Amman Temple." },
+    { type: "property", city: "Aurangabad", monument: "Ellora Caves", image: "https://images.unsplash.com/photo-1622308644420-b201421991a4?w=600&q=80", price: 440, housePaisePrice: 220, rent: [40, 200, 580, 1300, 1800, 2400], color: "#C9648A", group: 3, sideIndex: 1, history: "Ancient trade crossroads carved with UNESCO Ellora & Ajanta rock-cut caves between the 6th and 10th centuries, showcasing the pinnacle of ancient Indian monolithic rock sculpture." },
+    { type: "chance", title: "Chance", sideIndex: 1 },
+    { type: "property", city: "Darjeeling", monument: "Peace Pagoda", image: "https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=600&q=80", price: 500, housePaisePrice: 280, rent: [48, 240, 680, 1450, 1950, 2650], color: "#D9822B", group: 4, sideIndex: 1, history: "Nestled in the Eastern Himalayas under Kanchenjunga, famous for its historic UNESCO mountain narrow-gauge railway and world-renowned tea plantations established in the 19th century." },
+    { type: "railroad", city: "Mumbai", monument: "Mumbai Airport", image: "https://images.unsplash.com/photo-1520482800698-651e016ebe34?w=600&q=80", price: 450, rent: 85, sideIndex: 1, history: "Chhatrapati Shivaji Maharaj International Airport, the bustling maritime and air transit center of India's commercial capital." },
+    { type: "property", city: "Ranchi", monument: "Rock Garden", image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&q=80", price: 540, housePaisePrice: 280, rent: [52, 260, 720, 1550, 2100, 2800], color: "#D9822B", group: 4, sideIndex: 1, history: "Heart of the Chota Nagpur Plateau, deeply rooted in ancient tribal heritage and liberation movement history led by tribal freedom icon Birsa Munda." },
+    { type: "corner", title: "REST", sub: "Vishramagriha", sideIndex: 2 },
+    { type: "community", title: "Community", sideIndex: 2 },
+    { type: "property", city: "Sanchi", monument: "Ashoka Pillar", image: "https://images.unsplash.com/photo-1600100397608-f010e423b961?w=600&q=80", price: 620, housePaisePrice: 340, rent: [60, 300, 820, 1750, 2300, 3100], color: "#D32F2F", group: 5, sideIndex: 2, history: "Commissioned by Emperor Ashoka the Great in the 3rd century BCE, Sanchi is home to the oldest stone Buddhist stupas and stone Torana gateways in India." },
+    { type: "property", city: "Vizag", monument: "Kailasagiri", image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80", price: 620, housePaisePrice: 340, rent: [60, 300, 820, 1750, 2300, 3100], color: "#D32F2F", group: 5, sideIndex: 2, history: "Ancient Coromandel coast port city recorded in 5th century BCE Buddhist texts, historically governed by Kalinga, Eastern Chalukya, and Chola dynasties." },
+    { type: "property", city: "Bangalore", monument: "Tipu's Palace", image: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&q=80", price: 680, housePaisePrice: 340, rent: [68, 340, 920, 1900, 2500, 3350], color: "#D32F2F", group: 5, sideIndex: 2, history: "Founded in 1537 by Kempe Gowda I of the Vijayanagara Empire, later fortified by Hyder Ali and Tipu Sultan as a center of southern royal power." },
+    { type: "chance", title: "Chance", sideIndex: 2 },
+    { type: "property", city: "Hyderabad", monument: "Charminar", image: "https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=600&q=80", price: 740, housePaisePrice: 400, rent: [75, 375, 1020, 2100, 2750, 3650], color: "#FBC02D", group: 6, sideIndex: 2, history: "Established in 1591 by Muhammad Quli Qutb Shah along the Musi River, legendary worldwide for Golconda diamond mines, Charminar, and Nizam royalty." },
+    { type: "railroad", city: "Chennai", monument: "Chennai Airport", image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=80", price: 450, rent: 85, sideIndex: 2, history: "Chennai International Airport, essential transit hub connecting South India's historic dynasties with global maritime routes." },
+    { type: "corner", title: "GO TO JAIL", sub: "Caragriha", sideIndex: 3 },
+    { type: "property", city: "Varanasi", monument: "Kashi Vishwanath", image: "https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=600&q=80", price: 800, housePaisePrice: 400, rent: [82, 410, 1120, 2250, 2900, 3850], color: "#FBC02D", group: 6, sideIndex: 3, history: "Kashi — the world's oldest living spiritual city dating over 3,000 years. Revered on the banks of the sacred Ganges as the city of Lord Shiva and ancient learning." },
+    { type: "community", title: "Community", sideIndex: 3 },
+    { type: "property", city: "Kolkata", monument: "Victoria Memorial", image: "https://images.unsplash.com/photo-1558431382-27e303142255?w=600&q=80", price: 880, housePaisePrice: 450, rent: [90, 450, 1250, 2450, 3150, 4150], color: "#388E3C", group: 7, sideIndex: 3, history: "The cultural capital of India on the Hooghly River, birthplace of modern Indian Renaissance, literature, art, and intellectual awakening." },
+    { type: "property", city: "Chennai", monument: "Fort St. George", image: "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&q=80", price: 880, housePaisePrice: 450, rent: [90, 450, 1250, 2450, 3150, 4150], color: "#388E3C", group: 7, sideIndex: 3, history: "Anciently known as Tondaimandalam, governed by the Chola, Pallava, and Vijayanagara empires, retaining deep Dravidian temple tradition and Classical Tamil roots." },
+    { type: "property", city: "Ahmedabad", monument: "Sabarmati Ashram", image: "https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=600&q=80", price: 950, housePaisePrice: 450, rent: [100, 500, 1380, 2650, 3400, 4450], color: "#388E3C", group: 7, sideIndex: 3, history: "Founded in 1411 by Sultan Ahmed Shah, India's first UNESCO World Heritage City, famous for Islamic jali architecture and Mahatma Gandhi's freedom movement headquarters." },
+    { type: "chance", title: "Chance", sideIndex: 3 },
+    { type: "property", city: "Patna", monument: "Golghar", image: "https://images.unsplash.com/photo-1622308644420-b201421991a4?w=600&q=80", price: 1050, housePaisePrice: 500, rent: [115, 575, 1550, 2900, 3750, 4850], color: "#1976D2", group: 8, sideIndex: 3, history: "Ancient Pataliputra, imperial capital of the Magadha, Nanda, Maurya, and Gupta empires. Home to Chanakya, Chandragupta, and Emperor Ashoka." },
+    { type: "railroad", city: "Kolkata", monument: "Kolkata Airport", image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=80", price: 450, rent: 85, sideIndex: 3, history: "Netaji Subhash Chandra Bose International Airport, connecting Eastern India's trade network with international maritime air corridors." },
+    { type: "property", city: "Pune", monument: "Shaniwar Wada", image: "https://images.unsplash.com/photo-1600100397608-f010e423b961?w=600&q=80", price: 1150, housePaisePrice: 500, rent: [130, 650, 1750, 3200, 4100, 5250], color: "#1976D2", group: 8, sideIndex: 3, history: "The seat of the Maratha Empire under the Peshwas in the 18th century, celebrated for Chhatrapati Shivaji Maharaj's legacy and Shaniwar Wada fortification." },
+    { type: "chance", title: "Chance", sideIndex: 3 },
+    { type: "property", city: "Mumbai", monument: "Gateway of India", image: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&q=80", price: 1300, housePaisePrice: 500, rent: [150, 750, 2000, 3600, 4600, 5800], color: "#1976D2", group: 8, sideIndex: 3, history: "Originally an archipelago of 7 ancient fishing islands ruled by the Silhara dynasty and Gujarat Sultanate, now the modern financial metropolis of India." }
+  ];
+
+  const gridPositions = [];
+  for(let c=9; c>=1; c--) gridPositions.push({row:9, col:c});
+  for(let r=8; r>=1; r--) gridPositions.push({row:r, col:1});
+  for(let c=2; c<=9; c++) gridPositions.push({row:1, col:c});
+  for(let r=2; r<=8; r++) gridPositions.push({row:r, col:9});
+
+  const gameState = {
+    players: [
+      { id: 0, name: "Suryavanshi", color: "#FFD700", cssClass: "gold", rupees: 2200, paise: 500, pos: 0, inJail: false, jailTurns: 0, bankrupt: false },
+      { id: 1, name: "Chandravanshi", color: "#E74C3C", cssClass: "ruby", rupees: 2200, paise: 500, pos: 0, inJail: false, jailTurns: 0, bankrupt: false },
+      { id: 2, name: "Maurya Raj", color: "#2ECC71", cssClass: "emerald", rupees: 2200, paise: 500, pos: 0, inJail: false, jailTurns: 0, bankrupt: false },
+      { id: 3, name: "Chola King", color: "#3498DB", cssClass: "peacock", rupees: 2200, paise: 500, pos: 0, inJail: false, jailTurns: 0, bankrupt: false }
+    ],
+    currentPlayer: 0,
+    boardState: BOARD_TILES.map(() => ({ owner: null, houses: 0 })),
+    isRolling: false,
+    boardSideFront: 0
+  };
+
+  const boardEl = document.getElementById("board");
+  gridPositions.forEach((pos, idx) => {
+    const tile = BOARD_TILES[idx];
+    const div = document.createElement("div");
+    div.style.gridRow = pos.row;
+    div.style.gridColumn = pos.col;
+    div.id = `cell-${idx}`;
+
+    if(tile.type === "corner") {
+      div.className = "cell corner";
+      div.innerHTML = `${tile.title}<span class="sub">${tile.sub || ''}</span>`;
+    } else if(tile.type === "property" || tile.type === "railroad") {
+      div.className = "cell";
+      div.innerHTML = `
+        <div class="band" style="background:${tile.color || '#5A3A1E'}">
+          <div class="owner-indicator" id="owner-${idx}"></div>
+          <div class="buildings-bar" id="build-${idx}"></div>
+        </div>
+        <div class="label">
+          <div class="cell-title-wrapper">
+            <span class="cell-title">${tile.city}</span>
+            <div class="history-hover-card" id="history-card-${idx}">
+              <div class="history-title">
+                <span>${tile.city} - ${tile.monument}</span>
+                <span class="history-owner-badge" id="history-owner-lbl-${idx}">OWNED</span>
+              </div>
+              <div class="history-text">${tile.history || 'Ancient historical records pending discovery.'}</div>
+            </div>
+          </div>
+          <img class="cell-img" src="${tile.image}" alt="${tile.monument}" loading="eager" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" />
+          <span class="cell-monument">${tile.monument}</span>
+          <span class="price">₹${tile.price}</span>
+        </div>
+        <div id="badge-${idx}"></div>
+      `;
+    } else if(tile.type === "chance") {
+      div.className = "cell";
+      div.innerHTML = `
+        <div class="band" style="background:#C85A32"></div>
+        <div class="chance-box">CHANCE</div>
+      `;
+    } else if(tile.type === "community") {
+      div.className = "cell";
+      div.innerHTML = `
+        <div class="band" style="background:#1A365D"></div>
+        <div class="community-box">COMMUNITY</div>
+      `;
+    }
+    boardEl.appendChild(div);
+  });
+
+  const center = document.createElement("div");
+  center.className = "center";
+  center.innerHTML = `
+    <div class="center-content">
+      <h1>VIRASATX</h1>
+    </div>
+  `;
+  boardEl.appendChild(center);
+
+  const tokensLayer = document.getElementById("tokensLayer");
+  const tokenEls = [];
+  const billboardEls = [];
+
+  gameState.players.forEach(p => {
+    const svgContent = PLAYER_3D_SVGS[p.cssClass];
+    const token = document.createElement("div");
+    token.className = `token token-${p.cssClass}`;
+    
+    const bb = document.createElement("div");
+    bb.className = "token-billboard";
+    
+    bb.innerHTML = `
+      <div class="token-pedestal-3d">
+        <div class="pedestal-ring r1"></div>
+        <div class="pedestal-ring r2"></div>
+        <div class="pedestal-ring r3"></div>
+      </div>
+      <div class="token-figure-3d">
+        <div class="token-slice s1">${svgContent}</div>
+        <div class="token-slice s2">${svgContent}</div>
+        <div class="token-slice s3">${svgContent}</div>
+        <div class="token-slice s4">${svgContent}</div>
+        <div class="token-slice s5">${svgContent}</div>
+      </div>
+    `;
+    
+    token.appendChild(bb);
+    tokensLayer.appendChild(token);
+    tokenEls.push(token);
+    billboardEls.push(bb);
+  });
+
+  function getCellCoordinates(cellIndex) {
+    const cellEl = document.getElementById(`cell-${cellIndex}`);
+    if (!cellEl) return { x: 0, y: 0 };
+    return {
+      x: cellEl.offsetLeft + (cellEl.offsetWidth / 2) - 16,
+      y: cellEl.offsetTop + (cellEl.offsetHeight / 2) - 16
+    };
+  }
+
+  function updateTokenPositions() {
+    gameState.players.forEach((p, idx) => {
+      if(p.bankrupt) {
+        tokenEls[idx].style.display = "none";
+        return;
+      }
+      const coords = getCellCoordinates(p.pos);
+      const offsetX = (idx % 2 === 0 ? -7 : 7);
+      const offsetY = (idx < 2 ? -7 : 7);
+      
+      tokenEls[idx].style.left = `${coords.x + offsetX}px`;
+      tokenEls[idx].style.top = `${coords.y + offsetY}px`;
+    });
+  }
+
+  function updateBillboardRotations(rotationAngle) {
+    billboardEls.forEach(bb => {
+      bb.style.transform = `rotateZ(${-rotationAngle}deg)`;
+    });
+  }
+
+  function checkAndFlipBoardSide() {
+    const activePlayers = gameState.players.filter(p => !p.bankrupt);
+    if(activePlayers.length === 0) return;
+
+    const currentSides = activePlayers.map(p => BOARD_TILES[p.pos].sideIndex);
+    const minSide = Math.min(...currentSides);
+
+    if (minSide !== gameState.boardSideFront) {
+      gameState.boardSideFront = minSide;
+      const rig = document.getElementById("rig");
+      const rotationAngle = minSide * -90 - 10;
+      rig.style.transform = `rotateX(52deg) rotateZ(${rotationAngle}deg)`;
+      
+      updateBillboardRotations(rotationAngle);
+      logMsg(`🔄 Board rotated! <b>Side ${minSide + 1}</b> is now front.`);
+    }
+  }
+
+  const hudEl = document.getElementById("hud");
+  function updateHUD() {
+    hudEl.innerHTML = "";
+    gameState.players.forEach((p, idx) => {
+      const card = document.createElement("div");
+      card.id = `player-card-${p.id}`;
+      card.className = `player-card ${idx === gameState.currentPlayer ? 'active' : ''} ${p.bankrupt ? 'bankrupt' : ''}`;
+      card.innerHTML = `
+        <div class="player-name">
+          <span id="player-label-${p.id}">${p.name}</span>
+          <span class="player-badge" style="background:${p.color}; color:${p.color};"></span>
+        </div>
+        <div class="currencies">
+          <div class="currency-badge"><span class="currency-val val-rupees">₹${p.rupees}</span></div>
+          <div class="currency-badge"><span class="currency-val val-paise">🪙 ${p.paise}p</span></div>
+        </div>
+      `;
+      hudEl.appendChild(card);
+    });
+  }
+
+  function showTransactionPopup(player, amountText, isGain, reason) {
+    const transOverlay = document.getElementById("transOverlay");
+    const transType = document.getElementById("transType");
+    const transPlayerName = document.getElementById("transPlayerName");
+    const transAmount = document.getElementById("transAmount");
+    const transReason = document.getElementById("transReason");
+    const closeBtn = document.getElementById("closeTransBtn");
+
+    transType.textContent = isGain ? "TREASURY INCREASE" : "TREASURY DEDUCTION";
+    transType.style.color = isGain ? "#2ECC71" : "#E74C3C";
+    
+    transPlayerName.textContent = player.name;
+    transPlayerName.style.color = player.color;
+
+    transAmount.textContent = (isGain ? "+" : "-") + amountText;
+    transAmount.className = `trans-amount ${isGain ? 'plus' : 'minus'}`;
+
+    transReason.textContent = reason || "Imperial Treasury Order";
+
+    transOverlay.classList.add("open");
+
+    closeBtn.onclick = () => {
+      transOverlay.classList.remove("open");
+    };
+  }
+
+  function logMsg(msg) {
+    const container = document.getElementById("toastContainer");
+    const toast = document.createElement("div");
+    toast.className = "game-toast";
+    toast.innerHTML = msg;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.add("out");
+      setTimeout(() => toast.remove(), 300);
+    }, 3800);
+  }
+
+  const pipLayouts = {
+    1: [[50,50]],
+    2: [[25,50],[75,50]],
+    3: [[20,50],[50,50],[80,50]],
+    4: [[25,30],[75,30],[25,70],[75,70]]
+  };
+  const faceAngles = [0, 90, 180, 270];
+
+  function buildDie(el) {
+    [1,2,3,4].forEach((num) => {
+      const face = document.createElement("div");
+      face.className = `die-face f${num}`;
+      pipLayouts[num].forEach(([x,y]) => {
+        const pip = document.createElement("div");
+        pip.className = "pip";
+        pip.style.left = `${x}%`;
+        pip.style.top = `${y}%`;
+        face.appendChild(pip);
+      });
+      el.appendChild(face);
+    });
+    const capLeft = document.createElement("div");
+    capLeft.className = "die-cap left";
+    const capRight = document.createElement("div");
+    capRight.className = "die-cap right";
+    el.appendChild(capLeft);
+    el.appendChild(capRight);
+
+    const dieState = { el, currentX: 0 };
+    el.style.transform = "rotateZ(-6deg) rotateX(0deg)";
+    return dieState;
+  }
+
+  function rollDie(dieState) {
+    return new Promise(resolve => {
+      const k = Math.floor(Math.random() * 4);
+      const neededMod = (360 - faceAngles[k]) % 360;
+      const baseFull = Math.floor(dieState.currentX / 360) * 360;
+      const targetX = baseFull + 1080 + neededMod;
+
+      dieState.el.style.transform = `rotateZ(-6deg) rotateX(${targetX}deg)`;
+      dieState.currentX = targetX;
+
+      setTimeout(() => resolve(k + 1), 1200);
+    });
+  }
+
+  const dieState1 = buildDie(document.getElementById("die1"));
+  const dieState2 = buildDie(document.getElementById("die2"));
+  const rollBtn = document.getElementById("rollBtn");
+
+  const modalOverlay = document.getElementById("modalOverlay");
+  const modalHeader = document.getElementById("modalHeader");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalSubtitle = document.getElementById("modalSubtitle");
+  const modalBody = document.getElementById("modalBody");
+  const modalActions = document.getElementById("modalActions");
+
+  function showModal(headerText, headerColor, title, subtitleText, bodyHtml, actions) {
+    modalHeader.textContent = headerText;
+    modalHeader.style.background = headerColor || "#5A2A18";
+    modalTitle.textContent = title;
+    modalSubtitle.textContent = subtitleText || "";
+    
+    if (typeof bodyHtml === 'string') {
+      modalBody.innerHTML = `<p style="margin:8px 0; font-size:13.5px;">${bodyHtml}</p>`;
+    } else {
+      modalBody.innerHTML = '';
+      modalBody.appendChild(bodyHtml);
+    }
+    
+    modalActions.innerHTML = "";
+    actions.forEach(act => {
+      const btn = document.createElement("button");
+      btn.className = "action-btn";
+      btn.style.padding = "9px 20px";
+      btn.textContent = act.label;
+      btn.onclick = () => {
+        modalOverlay.classList.remove("open");
+        act.callback();
+      };
+      modalActions.appendChild(btn);
+    });
+    modalOverlay.classList.add("open");
+  }
+
+  function openRenameMenu() {
+    if (gameState.isRolling) return;
+
+    const form = document.createElement("div");
+    form.className = "rename-form";
+
+    gameState.players.forEach(p => {
+      const row = document.createElement("div");
+      row.className = "rename-row";
+      row.innerHTML = `
+        <span class="player-badge" style="background:${p.color}; color:${p.color}; flex-shrink:0;"></span>
+        <input type="text" class="rename-input" id="rename-input-${p.id}" value="${p.name}" maxlength="14" />
+      `;
+      form.appendChild(row);
+    });
+
+    showModal("ROYAL ANNOUNCEMENT", "#1A365D", "Rename Rulers", "Modify Empire Names", form, [
+      {
+        label: "Save Changes",
+        callback: () => {
+          gameState.players.forEach(p => {
+            const input = document.getElementById(`rename-input-${p.id}`);
+            if (input && input.value.trim() !== "") {
+              p.name = input.value.trim();
+            }
+          });
+          updateHUD();
+          logMsg("👑 Ruler names updated in royal records!");
+        }
+      },
+      { label: "Cancel", callback: () => {} }
+    ]);
+  }
+
+  document.getElementById("openRenameMenuBtn").addEventListener("click", openRenameMenu);
+
+  function triggerConquestAnimation(player, tileTitle) {
+    const overlay = document.getElementById("conquestOverlay");
+    const nameEl = document.getElementById("conquestOwnerName");
+    const tileEl = document.getElementById("conquestTileName");
+    const closeBtn = document.getElementById("closeConquestBtn");
+
+    nameEl.textContent = player.name.toUpperCase();
+    nameEl.style.color = player.color;
+    tileEl.textContent = tileTitle.toUpperCase();
+
+    overlay.classList.add("open");
+
+    closeBtn.onclick = () => {
+      overlay.classList.remove("open");
+      nextTurn();
+    };
+  }
+
+  const WHEEL_SLICES = [
+    { label: "Gain ₹250", type: "rupees", amount: 250, color: "#27AE60" },
+    { label: "Lose ₹150", type: "rupees", amount: -150, color: "#C0392B" },
+    { label: "Gain 120p", type: "paise", amount: 120, color: "#F39C12" },
+    { label: "Lose 80p", type: "paise", amount: -80, color: "#D35400" },
+    { label: "Gain ₹350", type: "rupees", amount: 350, color: "#2ECC71" },
+    { label: "Lose ₹250", type: "rupees", amount: -250, color: "#922B21" },
+    { label: "Gain 200p", type: "paise", amount: 200, color: "#F1C40F" },
+    { label: "Lose 120p", type: "paise", amount: -120, color: "#B9770E" }
+  ];
+
+  let currentWheelRotation = 0;
+
+  function drawWheel() {
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const numSlices = WHEEL_SLICES.length;
+    const sliceAngle = (2 * Math.PI) / numSlices;
+    const radius = canvas.width / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    WHEEL_SLICES.forEach((slice, i) => {
+      const angle = i * sliceAngle;
+      ctx.beginPath();
+      ctx.fillStyle = slice.color;
+      ctx.moveTo(radius, radius);
+      ctx.arc(radius, radius, radius - 4, angle, angle + sliceAngle);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#22120B";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(radius, radius);
+      ctx.rotate(angle + sliceAngle / 2);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#FFF";
+      ctx.font = "bold 13px 'Cinzel', serif";
+      ctx.fillText(slice.label, radius - 18, 5);
+      ctx.restore();
+    });
+  }
+
+  function openWheelModal(player, tileTitle) {
+    const overlay = document.getElementById("wheelOverlay");
+    const header = document.getElementById("wheelHeader");
+    const textEl = document.getElementById("wheelResultText");
+    const spinBtn = document.getElementById("spinWheelBtn");
+    const canvas = document.getElementById("wheelCanvas");
+
+    header.textContent = tileTitle.toUpperCase() + " CHAKRA";
+    textEl.textContent = "Spin the Chakra to fulfill your fate!";
+    spinBtn.style.display = "inline-block";
+    spinBtn.disabled = false;
+    
+    canvas.style.transition = "none";
+    currentWheelRotation = currentWheelRotation % 360;
+    canvas.style.transform = `rotate(${currentWheelRotation}deg)`;
+
+    drawWheel();
+    overlay.classList.add("open");
+
+    spinBtn.onclick = () => {
+      spinBtn.disabled = true;
+      textEl.textContent = "The Chakra spins...";
+
+      const sliceAngle = 360 / WHEEL_SLICES.length;
+      const chosenIndex = Math.floor(Math.random() * WHEEL_SLICES.length);
+      const chosenSlice = WHEEL_SLICES[chosenIndex];
+
+      const targetSliceCenter = chosenIndex * sliceAngle + sliceAngle / 2;
+      const degreesToLandTop = 270 - targetSliceCenter;
+      const extraSpins = 360 * 5;
+      const totalRotation = currentWheelRotation + extraSpins + (degreesToLandTop - (currentWheelRotation % 360) + 360) % 360;
+
+      currentWheelRotation = totalRotation;
+      canvas.style.transition = "transform 4s cubic-bezier(0.15, 0.85, 0.15, 1)";
+      canvas.style.transform = `rotate(${totalRotation}deg)`;
+
+      setTimeout(() => {
+        spinBtn.style.display = "none";
+
+        if (chosenSlice.type === "rupees") {
+          if (chosenSlice.amount > 0) {
+            player.rupees += chosenSlice.amount;
+            textEl.innerHTML = `Fate favored you!<br><b style="color:#FFD700;">+₹${chosenSlice.amount} Earned</b>`;
+            logMsg(`👑 <b>${player.name}</b> gained <b>₹${chosenSlice.amount}</b>!`);
+            showTransactionPopup(player, `₹${chosenSlice.amount}`, true, "Chakra Wheel Favor");
+          } else {
+            const absAmt = Math.abs(chosenSlice.amount);
+            textEl.innerHTML = `Fate demanded a toll!<br><b style="color:#E74C3C;">-₹${absAmt} Paid</b>`;
+            logMsg(`⚖️ <b>${player.name}</b> paid a toll of <b>₹${absAmt}</b>.`);
+            payRupees(player, null, absAmt, "Chakra Wheel Toll");
+          }
+        } else if (chosenSlice.type === "paise") {
+          if (chosenSlice.amount > 0) {
+            player.paise += chosenSlice.amount;
+            textEl.innerHTML = `Fate granted riches!<br><b style="color:#FF9933;">+${chosenSlice.amount} Paise Earned</b>`;
+            logMsg(`🪙 <b>${player.name}</b> gained <b>${chosenSlice.amount} Paise</b>!`);
+            showTransactionPopup(player, `${chosenSlice.amount} Paise`, true, "Chakra Wheel Reward");
+          } else {
+            const absAmt = Math.abs(chosenSlice.amount);
+            player.paise = Math.max(0, player.paise - absAmt);
+            textEl.innerHTML = `Fate claimed your coins!<br><b style="color:#FF9933;">-${absAmt} Paise Lost</b>`;
+            logMsg(`💸 <b>${player.name}</b> lost <b>${absAmt} Paise</b>.`);
+            showTransactionPopup(player, `${absAmt} Paise`, false, "Chakra Wheel Penalty");
+          }
+        }
+
+        updateHUD();
+
+        setTimeout(() => {
+          overlay.classList.remove("open");
+          nextTurn();
+        }, 2200);
+
+      }, 4100);
+    };
+  }
+
+  // CHANCE QUIZ & BHAGYA MACHINE LOGIC
+  const CHANCE_QUESTIONS = [
+    {
+      q: "Who was the teacher and advisor of Chandragupta Maurya?",
+      display: "Chanakya (Kautilya)",
+      accept: ["chanakya", "kautilya", "chanakya (kautilya)"],
+    },
+    {
+      q: "Which battle established British power in Bengal?",
+      display: "Battle of Plassey",
+      accept: ["battle of plassey", "plassey"],
+    },
+    {
+      q: "Who founded the Mughal Empire in India?",
+      display: "Babur",
+      accept: ["babur"],
+    },
+    {
+      q: "Which Mughal emperor built the Red Fort in Delhi?",
+      display: "Shah Jahan",
+      accept: ["shah jahan", "shahjahan"],
+    },
+    {
+      q: "Who led the Indian Rebellion of 1857 in Jhansi?",
+      display: "Rani Lakshmibai",
+      accept: ["rani lakshmibai", "lakshmibai", "rani laxmibai", "laxmibai", "jhansi ki rani", "rani of jhansi"],
+    },
+    {
+      q: "Which ruler is associated with the policy of Sulh-i-Kul?",
+      display: "Akbar",
+      accept: ["akbar"],
+    },
+    {
+      q: "Who founded the Brahmo Samaj?",
+      display: "Raja Ram Mohan Roy",
+      accept: ["raja ram mohan roy", "ram mohan roy", "rammohan roy"],
+    },
+    {
+      q: "Who started the Dandi March?",
+      display: "Mahatma Gandhi",
+      accept: ["mahatma gandhi", "gandhi", "mohandas gandhi", "mohandas karamchand gandhi"],
+    },
+    {
+      q: "Which movement was launched by Gandhi in 1942?",
+      display: "Quit India Movement",
+      accept: ["quit india movement", "quit india"],
+    },
+    {
+      q: "Who gave the slogan \"Swaraj is my birthright\"?",
+      display: "Bal Gangadhar Tilak",
+      accept: ["bal gangadhar tilak", "tilak", "bal gangadhar"],
+    },
+  ];
+
+  function quizNormalize(str) {
+    return str.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+  }
+
+  function quizIsCorrect(userAnswer, question) {
+    const norm = quizNormalize(userAnswer);
+    if (!norm) return false;
+    return question.accept.some(a => {
+      const na = quizNormalize(a);
+      return norm === na || norm.includes(na) || na.includes(norm);
+    });
+  }
+
+  function openChanceQuizModal(player) {
+    const overlay = document.getElementById("quizOverlay");
+    const qText = document.getElementById("quizQuestionText");
+    const input = document.getElementById("quizInput");
+    const submitBtn = document.getElementById("quizSubmitBtn");
+    const feedback = document.getElementById("quizFeedback");
+
+    const question = CHANCE_QUESTIONS[Math.floor(Math.random() * CHANCE_QUESTIONS.length)];
+    qText.textContent = question.q;
+    input.value = "";
+    feedback.textContent = "";
+    feedback.className = "quiz-feedback";
+    submitBtn.disabled = false;
+    input.disabled = false;
+
+    overlay.classList.add("open");
+    setTimeout(() => input.focus(), 150);
+
+    const submit = () => {
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
+      input.disabled = true;
+
+      const correct = quizIsCorrect(input.value, question);
+      if (correct) {
+        feedback.textContent = "Correct! The Chakra of Bhagya awakens...";
+        feedback.className = "quiz-feedback correct";
+        logMsg(`📖 <b>${player.name}</b> correctly answered a history question and earned a Bhagya spin.`);
+        setTimeout(() => {
+          overlay.classList.remove("open");
+          openBhagyaModal(player);
+        }, 1200);
+      } else {
+        feedback.textContent = `Incorrect. The true answer was: ${question.display}.`;
+        feedback.className = "quiz-feedback wrong";
+        logMsg(`📖 <b>${player.name}</b> answered a history question incorrectly (correct: ${question.display}).`);
+        setTimeout(() => {
+          overlay.classList.remove("open");
+          nextTurn();
+        }, 2000);
+      }
+    };
+
+    submitBtn.onclick = submit;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") submit();
+    };
+  }
+
+  const BHAGYA_SYMBOL_EMOJI = {
+    artifact: "🏺",
+    coins: "🪙",
+    ship: "🚢",
+    route: "🧭",
+    grain: "🌾",
+    temple: "🛕",
+    manuscript: "📜",
+    fort: "🏯",
+    royal: "👑",
+    conflict: "⚔️",
+  };
+  const BHAGYA_SYMBOL_NAMES = Object.keys(BHAGYA_SYMBOL_EMOJI);
+
+  const BHAGYA_EVENTS = [
+    {
+      key: "nalanda",
+      title: "NALANDA'S DESTRUCTION",
+      description: "Historical accounts describe the destruction of the Nalanda library. Your knowledge assets suffer a loss.",
+      effect: -500,
+      symbol: "manuscript",
+    },
+    {
+      key: "lothal",
+      title: "LOTHAL TRADE SUCCESS",
+      description: "Lothal was a major port of the Indus Valley civilisation. Your trade network brings unexpected profit.",
+      effect: 700,
+      symbol: "ship",
+    },
+    {
+      key: "artifact",
+      title: "ANCIENT ARTIFACT DISCOVERED",
+      description: "A valuable ancient artefact is discovered within your territory.",
+      effect: 500,
+      symbol: "artifact",
+    },
+    {
+      key: "harvest",
+      title: "GREAT HARVEST",
+      description: "Your agricultural region produces an exceptional harvest this season.",
+      effect: 400,
+      symbol: "grain",
+    },
+    {
+      key: "traderoute",
+      title: "NEW TRADE ROUTE",
+      description: "Your merchants establish a profitable new trade connection.",
+      effect: 600,
+      symbol: "route",
+    },
+  ];
+
+  const BHAGYA_SYMBOL_H = 70;
+  const bhagyaReels = [];
+
+  function bhagyaRandomSymbol() {
+    return BHAGYA_SYMBOL_NAMES[Math.floor(Math.random() * BHAGYA_SYMBOL_NAMES.length)];
+  }
+
+  function bhagyaBuildReels() {
+    const wrap = document.getElementById("bhagyaReelsWrap");
+    wrap.innerHTML = "";
+    bhagyaReels.length = 0;
+    for (let i = 0; i < 3; i++) {
+      const reel = document.createElement("div");
+      reel.className = "bhagya-reel";
+      const strip = document.createElement("div");
+      strip.className = "bhagya-reel-strip";
+      reel.appendChild(strip);
+      wrap.appendChild(reel);
+      bhagyaReels.push({ reel, strip });
+    }
+    bhagyaResetReels();
+  }
+
+  function bhagyaFillStrip(strip, finalSymbol, strLen) {
+    strip.innerHTML = "";
+    strip.style.transition = "none";
+    strip.style.transform = "translateY(0px)";
+    const names = [];
+    for (let i = 0; i < strLen - 1; i++) names.push(bhagyaRandomSymbol());
+    names.push(finalSymbol);
+    names.forEach(name => {
+      const cell = document.createElement("div");
+      cell.className = "bhagya-symbol";
+      cell.textContent = BHAGYA_SYMBOL_EMOJI[name];
+      strip.appendChild(cell);
+    });
+    return names;
+  }
+
+  function bhagyaResetReels() {
+    bhagyaReels.forEach(({ strip }) => {
+      bhagyaFillStrip(strip, bhagyaRandomSymbol(), 3);
+    });
+  }
+
+  function bhagyaSpinReel(strip, targetSymbol, delayMs, durationMs) {
+    return new Promise(resolve => {
+      const strLen = 22 + Math.floor(Math.random() * 6);
+      bhagyaFillStrip(strip, targetSymbol, strLen);
+      const maxScroll = (strLen - 1) * BHAGYA_SYMBOL_H;
+      strip.offsetHeight;
+      setTimeout(() => {
+        strip.style.transition = `transform ${durationMs}ms cubic-bezier(0.15, 0.85, 0.25, 1)`;
+        strip.style.transform = `translateY(-${maxScroll}px)`;
+        setTimeout(resolve, durationMs);
+      }, delayMs);
+    });
+  }
+
+  let bhagyaBusy = false;
+
+  function openBhagyaModal(player) {
+    const overlay = document.getElementById("bhagyaOverlay");
+    const hint = document.getElementById("bhagyaHint");
+    const plaque = document.getElementById("bhagyaPullPlaque");
+    const leverRod = document.getElementById("bhagyaLeverRod");
+    const resultBox = document.getElementById("bhagyaResult");
+
+    bhagyaBusy = false;
+    resultBox.classList.remove("show");
+    hint.style.display = "block";
+    plaque.classList.remove("disabled");
+    leverRod.classList.remove("pulled");
+
+    bhagyaBuildReels();
+    overlay.classList.add("open");
+
+    const pull = () => {
+      if (bhagyaBusy) return;
+      bhagyaBusy = true;
+      plaque.classList.add("disabled");
+      hint.style.display = "none";
+      leverRod.classList.add("pulled");
+      setTimeout(() => leverRod.classList.remove("pulled"), 500);
+
+      const event = BHAGYA_EVENTS[Math.floor(Math.random() * BHAGYA_EVENTS.length)];
+      const durations = [1400, 1700, 2000];
+      const delays = [0, 120, 220];
+
+      Promise.all(
+        bhagyaReels.map(({ strip }, i) => bhagyaSpinReel(strip, event.symbol, delays[i], durations[i]))
+      ).then(() => {
+        bhagyaShowResult(player, event);
+      });
+    };
+
+    plaque.onclick = pull;
+    leverRod.parentElement.onclick = pull;
+  }
+
+  function bhagyaShowResult(player, event) {
+    const resultBox = document.getElementById("bhagyaResult");
+    const iconEl = document.getElementById("bhagyaResultIcon");
+    const titleEl = document.getElementById("bhagyaResultTitle");
+    const descEl = document.getElementById("bhagyaResultDesc");
+    const amountEl = document.getElementById("bhagyaResultAmount");
+    const collectBtn = document.getElementById("bhagyaCollectBtn");
+
+    const positive = event.effect >= 0;
+    iconEl.textContent = BHAGYA_SYMBOL_EMOJI[event.symbol];
+    titleEl.textContent = event.title;
+    titleEl.style.color = positive ? "#FFD75E" : "#FF7A5C";
+    descEl.textContent = event.description;
+    amountEl.textContent = `${positive ? "+" : "-"} ₹${Math.abs(event.effect)}`;
+    amountEl.style.color = positive ? "#FFD75E" : "#FF5C4A";
+
+    resultBox.classList.add("show");
+
+    collectBtn.onclick = () => {
+      if (event.effect >= 0) {
+        player.rupees += event.effect;
+        logMsg(`🎰 <b>${player.name}</b> pulled the Bhagya lever and gained <b>₹${event.effect}</b> — ${event.title}.`);
+        showTransactionPopup(player, `₹${event.effect}`, true, event.title);
+        updateHUD();
+        document.getElementById("bhagyaOverlay").classList.remove("open");
+        nextTurn();
+      } else {
+        logMsg(`🎰 <b>${player.name}</b> pulled the Bhagya lever and lost <b>₹${Math.abs(event.effect)}</b> — ${event.title}.`);
+        document.getElementById("bhagyaOverlay").classList.remove("open");
+        payRupees(player, null, Math.abs(event.effect), event.title);
+        nextTurn();
+      }
+    };
+  }
+
+  function playerOwnsSet(playerId, group) {
+    const groupTiles = BOARD_TILES.map((t, idx) => ({ ...t, idx })).filter(t => t.group === group);
+    return groupTiles.every(t => gameState.boardState[t.idx].owner === playerId);
+  }
+
+  function openBuildMenu() {
+    const player = gameState.players[gameState.currentPlayer];
+    if (gameState.isRolling) return;
+
+    const buildable = [];
+    BOARD_TILES.forEach((tile, idx) => {
+      if (tile.type === "property" && gameState.boardState[idx].owner === player.id) {
+        if (playerOwnsSet(player.id, tile.group)) {
+          buildable.push({ ...tile, idx });
+        }
+      }
+    });
+
+    if (buildable.length === 0) {
+      showModal("BUILDING DECREE", "#C85A32", "No Realm Owned", "Requirement", "You must conquer all territories in a realm set before constructing Haveli or Royal Palaces!", [
+        { label: "Close", callback: () => {} }
+      ]);
+      return;
+    }
+
+    const container = document.createElement("div");
+    container.className = "build-list";
+
+    buildable.forEach(tile => {
+      const bState = gameState.boardState[tile.idx];
+      const item = document.createElement("div");
+      item.className = "build-item";
+      
+      const housesCount = bState.houses;
+      const statusText = housesCount === 5 ? "Royal Palace" : `${housesCount} Haveli`;
+      
+      item.innerHTML = `
+        <div style="text-align:left;">
+          <strong style="color:${tile.color}; font-size:13px;">${tile.city} - ${tile.monument}</strong><br>
+          <small>Cost: 🪙 ${tile.housePaisePrice}p | Status: ${statusText}</small>
+        </div>
+      `;
+
+      const btn = document.createElement("button");
+      btn.className = "action-btn build-btn";
+      btn.style.padding = "5px 12px";
+      btn.style.fontSize = "11px";
+      btn.textContent = housesCount === 4 ? "+ Palace" : "+ Haveli";
+      btn.disabled = housesCount >= 5 || player.paise < tile.housePaisePrice;
+
+      btn.onclick = () => {
+        modalOverlay.classList.remove("open");
+        buildHouse(player, tile.idx);
+      };
+
+      item.appendChild(btn);
+      container.appendChild(item);
+    });
+
+    showModal("CONSTRUCTION", "#C85A32", "Haveli & Palace Master", "Select a territory to build", container, [
+      { label: "Close", callback: () => {} }
+    ]);
+  }
+
+  document.getElementById("openBuildMenuBtn").addEventListener("click", openBuildMenu);
+
+  async function movePlayerSteps(player, steps) {
+    for(let i = 0; i < steps; i++) {
+      const nextPos = (player.pos + 1) % BOARD_TILES.length;
+      
+      if(nextPos === 0) {
+        player.rupees += 350;
+        player.paise += 150;
+        logMsg(`🏛️ <b>${player.name}</b> completed kingdom tour! Earned <b>₹350</b> & <b>150 Paise</b>.`);
+        showTransactionPopup(player, "₹350 & 150p", true, "Completed Kingdom Tour");
+        updateHUD();
+      }
+
+      player.pos = nextPos;
+      updateTokenPositions();
+      checkAndFlipBoardSide();
+      await new Promise(r => setTimeout(r, 220));
+    }
+  }
+
+  async function handleTurn() {
+    if(gameState.isRolling) return;
+    gameState.isRolling = true;
+    rollBtn.disabled = true;
+
+    playDiceRollSound();
+
+    const player = gameState.players[gameState.currentPlayer];
+
+    if(player.bankrupt) {
+      nextTurn();
+      return;
+    }
+
+    if(player.inJail) {
+      player.jailTurns++;
+      logMsg(`⛓️ <b>${player.name}</b> is confined in Bandigriha (Turn ${player.jailTurns}).`);
+      if(player.jailTurns >= 2) {
+        player.inJail = false;
+        player.jailTurns = 0;
+        logMsg(`🔓 <b>${player.name}</b> paid ₹100 fine and was released from Bandigriha!`);
+        payRupees(player, null, 100, "Jail Release Fine");
+      } else {
+        setTimeout(nextTurn, 1000);
+        return;
+      }
+    }
+
+    const [d1, d2] = await Promise.all([rollDie(dieState1), rollDie(dieState2)]);
+    const rollTotal = d1 + d2;
+    logMsg(`🎲 <b>${player.name}</b> rolled Pasa total <b>${rollTotal}</b> (${d1}+${d2}).`);
+
+    await movePlayerSteps(player, rollTotal);
+
+    const cellIdx = player.pos;
+    const tile = BOARD_TILES[cellIdx];
+    const bState = gameState.boardState[cellIdx];
+
+    if(tile.type === "property" || tile.type === "railroad") {
+      const tileTitle = `${tile.city} - ${tile.monument}`;
+      if(bState.owner === null) {
+        if(player.rupees >= tile.price) {
+          let deedHtml = '';
+
+          if(tile.type === "property") {
+            deedHtml = `
+              <div class="deed-card">
+                <img src="${tile.image}" style="width:100%; height:110px; object-fit:cover; border-radius:6px; margin-bottom:8px; border:1px solid #1C0A04;" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" />
+                <div class="deed-row"><span class="deed-label">Land Claim Price:</span><span class="deed-val deed-highlight">₹${tile.price}</span></div>
+                <div class="deed-row"><span class="deed-label">Base Tax:</span><span class="deed-val">₹${tile.rent[0]}</span></div>
+                <div class="deed-row"><span class="deed-label">With 1 Haveli:</span><span class="deed-val">₹${tile.rent[1]}</span></div>
+                <div class="deed-row"><span class="deed-label">With Royal Palace:</span><span class="deed-val deed-highlight">₹${tile.rent[5]}</span></div>
+                <div class="deed-row" style="margin-top:4px;"><span class="deed-label">Haveli Build Cost:</span><span class="deed-val">🪙 ${tile.housePaisePrice} Paise</span></div>
+              </div>
+            `;
+          } else {
+            deedHtml = `
+              <div class="deed-card">
+                <img src="${tile.image}" style="width:100%; height:110px; object-fit:cover; border-radius:6px; margin-bottom:8px; border:1px solid #1C0A04;" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" />
+                <div class="deed-row"><span class="deed-label">Airport Claim Price:</span><span class="deed-val deed-highlight">₹${tile.price}</span></div>
+                <div class="deed-row"><span class="deed-label">Fixed Traveler Tax:</span><span class="deed-val">₹${tile.rent}</span></div>
+              </div>
+            `;
+          }
+
+          showModal(
+            "TERRITORY FOR CLAIM",
+            tile.color || "#1A365D",
+            tileTitle,
+            "Royal Title Deed & Revenue Sheet",
+            deedHtml,
+            [
+              { label: `Claim Territory (₹${tile.price})`, callback: () => buyProperty(player, cellIdx) },
+              { label: "Decline", callback: () => nextTurn() }
+            ]
+          );
+        } else {
+          logMsg(`❌ <b>${player.name}</b> lacks Rupees to claim <b>${tileTitle}</b>.`);
+          nextTurn();
+        }
+      } else if(bState.owner !== player.id) {
+        const owner = gameState.players[bState.owner];
+        let rentAmount = 0;
+
+        if(tile.type === "property") {
+          rentAmount = tile.rent[bState.houses];
+          if (bState.houses === 0 && playerOwnsSet(owner.id, tile.group)) {
+            rentAmount *= 2;
+          }
+        } else {
+          rentAmount = tile.rent;
+        }
+
+        logMsg(`💰 <b>${player.name}</b> entered ${tileTitle} owned by ${owner.name}. Paid <b>₹${rentAmount}</b> tax.`);
+        payRupees(player, owner, rentAmount, `Land Rent for ${tile.city}`);
+        nextTurn();
+      } else {
+        if(tile.type === "property" && playerOwnsSet(player.id, tile.group) && bState.houses < 5 && player.paise >= tile.housePaisePrice) {
+          const isHotel = bState.houses === 4;
+          const currentRent = tile.rent[bState.houses];
+          const nextRent = tile.rent[bState.houses + 1];
+
+          showModal(
+            "UPGRADE TERRAIN",
+            tile.color,
+            tileTitle,
+            "Construction Upgrade",
+            `Construct a <b>${isHotel ? 'Royal Palace' : 'Haveli'}</b> for <b>🪙 ${tile.housePaisePrice} Paise</b>?<br><br>
+             Revenue Increase: <b>₹${currentRent}</b> ➔ <b style="color:#C85A32;">₹${nextRent}</b>`,
+            [
+              { label: `Construct (${tile.housePaisePrice}p)`, callback: () => buildHouse(player, cellIdx) },
+              { label: "Skip", callback: () => nextTurn() }
+            ]
+          );
+        } else {
+          nextTurn();
+        }
+      }
+    } else if(tile.type === "chance") {
+      openChanceQuizModal(player);
+    } else if(tile.type === "community") {
+      openWheelModal(player, tile.title);
+    } else if(tile.type === "corner" && tile.title === "GO TO JAIL") {
+      logMsg(`🚨 <b>${player.name}</b> was captured! Sent directly to Bandigriha.`);
+      player.pos = 8;
+      player.inJail = true;
+      updateTokenPositions();
+      checkAndFlipBoardSide();
+      nextTurn();
+    } else {
+      nextTurn();
+    }
+  }
+
+  function buyProperty(player, cellIdx) {
+    const tile = BOARD_TILES[cellIdx];
+    const tileTitle = `${tile.city} - ${tile.monument}`;
+    player.rupees -= tile.price;
+    gameState.boardState[cellIdx].owner = player.id;
+    
+    const cellEl = document.getElementById(`cell-${cellIdx}`);
+    if(cellEl) cellEl.classList.add("owned");
+
+    const indicator = document.getElementById(`owner-${cellIdx}`);
+    if(indicator) indicator.style.background = player.color;
+
+    const badgeContainer = document.getElementById(`badge-${cellIdx}`);
+    if(badgeContainer) {
+      badgeContainer.innerHTML = `
+        <div class="owner-badge-tile">
+          <span class="owner-badge-dot" style="background:${player.color}"></span>
+          <span>${player.name.substring(0,6)}</span>
+        </div>
+      `;
+    }
+
+    const ownerLbl = document.getElementById(`history-owner-lbl-${cellIdx}`);
+    if(ownerLbl) {
+      ownerLbl.textContent = player.name.toUpperCase();
+      ownerLbl.style.background = player.color;
+      ownerLbl.style.color = "#1C0A04";
+    }
+
+    logMsg(`🚩 <b>${player.name}</b> claimed <b>${tileTitle}</b> for <b>₹${tile.price}</b>.`);
+    showTransactionPopup(player, `₹${tile.price}`, false, `Territory Claim: ${tile.city}`);
+    updateHUD();
+
+    triggerConquestAnimation(player, tileTitle);
+  }
+
+  function buildHouse(player, cellIdx) {
+    const tile = BOARD_TILES[cellIdx];
+    const tileTitle = `${tile.city} - ${tile.monument}`;
+    const bState = gameState.boardState[cellIdx];
+    
+    player.paise -= tile.housePaisePrice;
+    bState.houses++;
+
+    const buildBar = document.getElementById(`build-${cellIdx}`);
+    if(buildBar) {
+      if(bState.houses === 5) {
+        buildBar.innerHTML = `<div class="hotel-icon"></div>`;
+      } else {
+        buildBar.innerHTML += `<div class="house-icon"></div>`;
+      }
+    }
+
+    logMsg(`🏰 <b>${player.name}</b> constructed a ${bState.houses === 5 ? 'Royal Palace' : 'Haveli'} on <b>${tileTitle}</b>.`);
+    showTransactionPopup(player, `${tile.housePaisePrice} Paise`, false, `Construction on ${tile.city}`);
+    updateHUD();
+    nextTurn();
+  }
+
+  function payRupees(fromPlayer, toPlayer, amount, reason = "Tax Payment") {
+    showTransactionPopup(fromPlayer, `₹${amount}`, false, reason);
+    if(toPlayer) {
+      showTransactionPopup(toPlayer, `₹${amount}`, true, reason);
+    }
+
+    if(fromPlayer.rupees >= amount) {
+      fromPlayer.rupees -= amount;
+      if(toPlayer) toPlayer.rupees += amount;
+    } else {
+      logMsg(`💀 <b>${fromPlayer.name}</b> went BANKRUPT!`);
+      fromPlayer.bankrupt = true;
+      if(toPlayer) toPlayer.rupees += fromPlayer.rupees;
+      fromPlayer.rupees = 0;
+      fromPlayer.paise = 0;
+      
+      gameState.boardState.forEach((b, idx) => {
+        if(b.owner === fromPlayer.id) {
+          b.owner = null;
+          b.houses = 0;
+          const cellEl = document.getElementById(`cell-${idx}`);
+          if(cellEl) cellEl.classList.remove("owned");
+          const ind = document.getElementById(`owner-${idx}`);
+          if(ind) ind.style.background = "transparent";
+          const build = document.getElementById(`build-${idx}`);
+          if(build) build.innerHTML = "";
+          const badgeContainer = document.getElementById(`badge-${idx}`);
+          if(badgeContainer) badgeContainer.innerHTML = "";
+        }
+      });
+    }
+    updateHUD();
+    checkWinCondition();
+  }
+
+  function checkWinCondition() {
+    const active = gameState.players.filter(p => !p.bankrupt);
+    if(active.length === 1) {
+      showModal("EMPIRE CONQUERED", "#D4AF37", "VIRASATX VICTORY", "Ultimate Sovereign", `👑 <b>${active[0].name}</b> has united the kingdoms and reigns supreme!`, [
+        { label: "New Campaign", callback: () => location.reload() }
+      ]);
+    }
+  }
+
+  function nextTurn() {
+    gameState.isRolling = false;
+    rollBtn.disabled = false;
+    
+    do {
+      gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+    } while(gameState.players[gameState.currentPlayer].bankrupt && gameState.players.filter(p=>!p.bankrupt).length > 1);
+
+    updateHUD();
+  }
+
+  rollBtn.addEventListener("click", handleTurn);
+
+  window.addEventListener("resize", () => {
+    updateTokenPositions();
+  });
+
+  setTimeout(() => {
+    updateTokenPositions();
+    updateBillboardRotations(-10);
+    updateHUD();
+    logMsg("👑 The Realm Awakens! <b>Suryavanshi</b>'s turn.");
+  }, 150);
+</script>
+
+</body>
+</html>
